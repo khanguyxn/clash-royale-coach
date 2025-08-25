@@ -1,0 +1,12 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['elixir bar', 'timer']
+
+roboflow:
+  workspace: khang-nguyen-evva6
+test: ../test/images
+train: ../train/images
+val: ../valid/images
