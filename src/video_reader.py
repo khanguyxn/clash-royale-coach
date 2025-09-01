@@ -90,6 +90,7 @@ def frame_reader(path, output_path, model):
     return width, height, fps, time
 
 '''
+#Use if you haven't trained the model yet
 api_key = os.getenv('API_KEY')
 rf = Roboflow(api_key)
 project = rf.workspace("khang-nguyen-evva6").project("elixir-timer-eh65e")
