@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 import pytesseract
 import numpy as np
 
+
+load_dotenv()
+path = "data/raw/test_video_1.MP4"
+output_path = "data/labels/annotated_video.mp4"
+
 def read_image(img):
      config = "--psm 13 -c tessedit_char_whitelist=0123456789"
      #img = Image.open(img)
@@ -19,22 +24,7 @@ def preprocess(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img = cv2.medianBlur(img, 3)
     img = cv2.resize(img, None, fx = 5, fy = 5, interpolation=cv2.INTER_CUBIC)
- 
-
-
-
     return(img)
-
-
-
-
-
-load_dotenv()
-path = "data/raw/test_video_1.MP4"
-output_path = "data/labels/annotated_video.mp4"
-
-
-
 
 
 def frame_reader(path, output_path, model):
@@ -102,10 +92,9 @@ results = model.train(
 )
 '''
 
-model_path = "/opt/homebrew/runs/detect/train3/weights/best.pt"
-model = YOLO(model_path)
 
-frame_reader(path, output_path, model)
+
+#frame_reader(path, output_path, model)
 
 
 
