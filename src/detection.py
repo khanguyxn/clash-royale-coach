@@ -4,7 +4,10 @@ from roboflow import Roboflow
 from ultralytics import YOLO
 from dotenv import load_dotenv
 import pytesseract
-import numpy as np
+import ai_tester
+from tkinter import *
+import pandas as pd
+
 
 
 load_dotenv()
@@ -26,8 +29,8 @@ def preprocess(img):
     img = cv2.resize(img, None, fx = 5, fy = 5, interpolation=cv2.INTER_CUBIC)
     return(img)
 
-
-def frame_reader(path, output_path, model):
+#to show overall detections
+def frame_reader(path, output_path, model): 
     #grab the video based on file path
     index = 0
 
@@ -75,8 +78,44 @@ def frame_reader(path, output_path, model):
                 break
         index += 1
         pass
-    
 
+
+#to be run when button is clicked 
+iteration = 1
+def scanFrame(path, model):
+     enemy_troops_df = pd.DataFrame(columns = ["name", "position"])
+     player_troops_df = pd.DataFrame(columns = ["name", "position"])
+     player_hand_df = pd.DataFrame(columns = ["curr_hand_name", "next_card"])
+     #need time, elixir, try for opponent elixir...?
+     for result in model.predict(
+          path,
+          conf = .6,
+          imgsz = 640,
+          show = True,
+          save_frames = True,
+          verbose = False,
+     ):
+          for detection in result:
+            box = detection.boxes
+            class_index = int(box.cls)
+            class_name = result.names[class_index]
+
+            if class_name == "elixir bar": 
+                x1, y1, x2, y2 = map(int, (box.xyxy[0].tolist()))
+                img = result.orig_img
+                elixir_region = img[y1+4:y2-30, x1+65:x2-80]
+                print(f'Elixir count: {read_image(elixir_region)}')
+                elixir_data = read_image(elixir_region)
+
+            
+            
+
+
+window = Tk()
+button = Button(window, text = 'Help Coach')
+#button.config(command = scanFrame())
+button.pack()
+window.mainloop()
 '''
 #Use if you haven't trained the model yet
 api_key = os.getenv('API_KEY')
@@ -92,7 +131,7 @@ results = model.train(
 )
 '''
 
-
+#ai_tester.runModel()
 
 #frame_reader(path, output_path, model)
 

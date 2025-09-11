@@ -6,5 +6,5 @@ def save_to_txt():
 save_tool = Tool(
     name = "testing_tool",
     func = save_to_txt,
-    decription = "testing function",
+    description = "testing function",
 )
