@@ -34,7 +34,9 @@ prompt_template = """
             If details are missing, make reasonable assumptions and still give the best recommendation. 
 
             Current Situation:
-            {topic}
+            In the player's hand, they have {player_hand}. Based on the situation, advise them on the optimal play to do with 
+            what they have.
+
 
             Your task:
             - Evaluate threats and opportunities
@@ -48,15 +50,15 @@ prompt_template = """
             {format_instructions}
 """
 prompt = PromptTemplate(
-    input_variables = ["topic", "format_instructions"],
+    input_variables = ["player_hand", "format_instructions"],
     template = prompt_template,
 )
 
 
-def runModel(positions, time, elixir, hand):
+def runModel(hand):
     chain = prompt | llm
     result = chain.invoke({
-        "topic": "I have hog rider, ice golem, log, and ice spirit in my starting hand. What should I do? My opponent just played a megaknight in the back.",
+        "player_hand": hand,
         "format_instructions": parser.get_format_instructions()
         }).content
 

@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 18
+names: ['card_archerqueen', 'card_cannon', 'card_earthquake', 'card_icegolem', 'card_log', 'card_royaldelivery', 'card_royalhogs', 'card_skeletons', 'elixir_bar_1', 'elixir_bar_10', 'elixir_bar_2', 'elixir_bar_3', 'elixir_bar_4', 'elixir_bar_5', 'elixir_bar_6', 'elixir_bar_7', 'elixir_bar_8', 'elixir_bar_9']
+
+roboflow:
+  workspace: khang-nguyen-evva6
+  project: cr_hand_cards-fojbu
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/khang-nguyen-evva6/cr_hand_cards-fojbu/dataset/1

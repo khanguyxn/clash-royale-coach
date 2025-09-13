@@ -1,4 +1,3 @@
 src/.env
 myenv/
-data/raw/*.MP4
-data/raw/*.png
+data
