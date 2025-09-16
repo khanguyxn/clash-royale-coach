@@ -8,6 +8,7 @@ import ai_tester
 from tkinter import *
 import pandas as pd
 import os
+from inference_sdk import InferenceHTTPClient
 
 
 
@@ -29,55 +30,121 @@ def preprocess(img):
     img = cv2.resize(img, None, fx = 5, fy = 5, interpolation=cv2.INTER_CUBIC)
     return(img)
 
-#to show overall detections
-def frame_reader(path, output_path, model): 
-    #grab the video based on file path
-    index = 0
+def makeArena():
+    rows = 15 +15 + 1
+    cols = 18
 
-   
+    # Build the empty arena
+    arena_grid = [["empty" for _ in range(cols)] for _ in range(rows)]
 
-    already_mapped = False
+    # Mark All towers towers
+    for row in range(rows):
+        for col in range(cols):
 
-    for result in model.predict(
-        path, 
-        conf = .1,
-        imgsz = (864, 480),
-        iou = .999,
-        half = False,
-        vid_stride = 5,
-        stream = True,
-        show = True,
-        verbose = False,
-        augment = False
+            #enemy back wall
+            if row == 0 and col < 6: 
+                arena_grid[row][col] = "back wall"
+            if row == 0 and  col > 11:
+                arena_grid[row][col] = "back wall"
 
-    ): 
-        #print(f'we have this many detections: {len(result)}')
-        
-        for detection in result:
-            box = detection.boxes
-            class_index = int(box.cls)
-            class_name = result.names[class_index]
-            '''
-            if class_name == "elixir bar" and index % 5 ==0:
-                 
-                 if already_mapped == False:   
-                    x1, y1, x2, y2 = map(int, (box.xyxy[0].tolist()))
-                    print("mapping again!")
-                    already_mapped = True
-                 img = result.orig_img
-                 elixir_region = img[y1+4:y2-30, x1+65:x2-80]
-                 print(f'Elixir count: {read_image(elixir_region)}')'''
+            #enemy king tower
+            if row > 0 and row < 5 and col >6 and col < 11:
+                arena_grid[row][col] = "enemy king tower"
+
+            #enemy princess tower
+            if (row > 4 and row < 8) and ((col >1 and col <5) or (col >12 and col < 16)):
+                arena_grid[row][col] = "enemy princess tower"
+
+            #river
+            if (row == 15):
+                arena_grid[row][col] = 'river'
 
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        index += 1
-        pass
+            #player back wall
+            if row == 30 and col < 6: 
+                arena_grid[row][col] = "back wall"
+
+            if row == 30 and  col > 11:
+                arena_grid[row][col] = "back wall"
+
+            
+            #player king tower
+            if row > 25 and row < 30 and col >6 and col < 11:
+                arena_grid[row][col] = "player king tower"
+
+            #enemy princess tower
+            if (row > 21 and row < 25) and ((col >1 and col <5) or (col >12 and col < 16)):
+                arena_grid[row][col] = "player princess tower"
+
+    return(arena_grid)
 
 
-#to be run when button is clicked 
-iteration = 1
-def scanFrame(img, hand_model, elixir_timer_model):
+def pixelToCoord(coord, curr_class, arena_grid):
+    px, py = coord
+    x1, y1 = 36, 266
+    cols, rows = 18, 31
+    tile_width = 815 / cols
+    tile_height = 1168 / rows
+
+    col = int((px - x1) // tile_width)
+    row = int((py - y1) // tile_height)
+    
+    #tile width = 45.3
+    #tile height = 37.68
+    
+    # Clamp to array bounds
+    col = min(cols - 1, max(0, col))
+    row = min(rows - 1, max(0, row))
+
+    arena_grid[row][col] = curr_class
+
+def setUpModelForCardsInPlay(client, frame):
+     result = client.run_workflow(
+          workspace_name="khang-nguyen-evva6",
+          workflow_id="custom-workflow-2",
+          images={
+               "image": frame
+          },
+          use_cache=True # cache workflow definition for 15 minutes
+     )
+     return result
+
+def analyze_cards_in_play(result):
+     cards_in_play = []
+     positions = []
+     for index in range(len(result[0]["predictions"]["predictions"])):
+          curr_prediction = result[0]["predictions"]["predictions"][index]
+          curr_class = curr_prediction["class"]
+          coord = int(curr_prediction['x']), int(curr_prediction['y'])
+          
+          cards_in_play.append(curr_class)
+          positions.append(coord)
+     print(f'cards is {cards_in_play} and positions are {positions}')
+     return positions, cards_in_play
+
+def draw_annotations(result, img):
+     for index in range(len(result[0]["predictions"]["predictions"])):
+          curr_prediction = result[0]["predictions"]["predictions"][index]
+          curr_class = curr_prediction["class"]
+          mid_x, mid_y = int(curr_prediction['x']), int(curr_prediction['y'])
+          half_height, half_width= int(curr_prediction["height"]/2), int(curr_prediction["width"]/2)
+          x1, y1 = mid_x - half_width, mid_y - half_height
+          x2, y2 = mid_x + half_width, mid_y + half_height
+          cv2.rectangle(img, (x1, y1), (x2, y2), (0,255,0), 2)
+          cv2.putText(
+              img,
+              f'{curr_class}',
+              (mid_x, y1),
+              cv2.FONT_HERSHEY_SIMPLEX,
+              1,
+              (0,0,255),
+     
+          )
+
+
+
+
+def scanFrame(img, hand_model, elixir_timer_model, client):
      enemy_troops = {
             "name" : [],
             "position" : [],
@@ -91,8 +158,49 @@ def scanFrame(img, hand_model, elixir_timer_model):
      } #curr hand name
      #need time, elixir, try for opponent elixir...?
 
+     #for cards in play:
+     result = setUpModelForCardsInPlay(client, img)
+     arena_grid = makeArena()
+     positions, cards_in_play = analyze_cards_in_play(result)
+     draw_annotations(result, img)
+
+     for index in range(len(positions)):
+         pixelToCoord(positions[index], cards_in_play[index], arena_grid)
+
+     for row in arena_grid:
+         print(row)
+
+
+     #for the elixir bar and timer:
+
+     for finding in elixir_timer_model.predict(
+          img,
+          iou = .5,
+          conf = .2,
+          imgsz = (864, 480),
+          verbose = False,
+
+     ):
+          for box in finding.boxes:
+            class_index = int(box.cls)
+            class_name = finding.names[class_index]
+
+            if class_name == "elixir bar":
+                 x1, y1, x2, y2 = map(int, (box.xyxy[0].tolist()))
+                 elixir_region = img[y1+4:y2-30, x1+65:x2-80]
+                 elixir_count = read_image(elixir_region)
+                 print(f'Elixir count: {elixir_count}')
+                 
+            elif class_name == "timer":
+                 x1, y1, x2, y2 = map(int, (box.xyxy[0].tolist()))
+                 timer_region = img[y1:y2, x1:x2]
+                 timer_count = read_image(timer_region)
+                 print(f'timer is {timer_count}')
+
+                
+
      #for the cards in hand: 
-     for result in hand_model.predict(
+     for detection in hand_model.predict(
           img,
           iou = .5,
           conf = .2,
@@ -102,17 +210,17 @@ def scanFrame(img, hand_model, elixir_timer_model):
           save = True,
           project = "data/annotated/",
      ):
-        for box in result.boxes:
+        for box in detection.boxes:
             class_index = int(box.cls)
-            class_name = result.names[class_index]
+            class_name = detection.names[class_index]
             print(f"class name is: {class_name}")
             player_hand["curr_hand_name"].append(class_name)
 
-     ai_tester.runModel(str(player_hand))
+     ai_tester.runModel(str(player_hand), arena_grid, elixir_count, timer_count)
 
 
 
-def runVideo(video_path, hand_model, elixir_timer_model):
+def runVideo(video_path, hand_model, elixir_timer_model, cards_in_play_client):
     cap = cv2.VideoCapture(video_path)
     while True:
          ret, frame = cap.read()
@@ -127,7 +235,7 @@ def runVideo(video_path, hand_model, elixir_timer_model):
             cv2.destroyAllWindows()
             break       
          elif key == ord('h'):
-              scanFrame(frame, hand_model, elixir_timer_model)
+              scanFrame(frame, hand_model, elixir_timer_model, cards_in_play_client)
 
 
 
@@ -150,18 +258,23 @@ results = model.train(
 '''
 
 
-#ai_tester.runModel()
-
 
 def main():
+     
      hand_model_path = "/opt/homebrew/runs/detect/train8/weights/best.pt"
      hand_model = YOLO(hand_model_path)
 
      elixir_timer_path = "/opt/homebrew/runs/detect/train3/weights/best.pt"
      elixir_timer_model = YOLO(elixir_timer_path)
+     
+     cards_in_play_client = client = InferenceHTTPClient(
+          api_url="https://serverless.roboflow.com",
+          api_key= os.getenv('API_KEY') 
+     )     
 
-     runVideo(video_path, hand_model, elixir_timer_model)
+     runVideo(video_path, hand_model, elixir_timer_model, cards_in_play_client)
 
+     
 
 if __name__ == "__main__":
      main()
