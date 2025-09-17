@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 8
+names: ['card_archerqueen', 'card_cannon', 'card_earthquake', 'card_icegolem', 'card_log', 'card_royaldelivery', 'card_royalhogs', 'card_skeletons']
+
+roboflow:
+  workspace: khang-nguyen-evva6
+  project: cr_hand_cards-fojbu
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/khang-nguyen-evva6/cr_hand_cards-fojbu/dataset/3

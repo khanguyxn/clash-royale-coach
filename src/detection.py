@@ -16,7 +16,7 @@ load_dotenv()
 video_path = "data/raw/test_video_1.MP4"
 
 def read_image(img):
-     config = "--psm 13 -c tessedit_char_whitelist=0123456789"
+     config = "--psm 13 -c tessedit_char_whitelist=0123456789:"
      #img = Image.open(img)
      img = preprocess(img)
      text = pytesseract.image_to_string(img, config = config)
@@ -130,14 +130,15 @@ def draw_annotations(result, img):
           half_height, half_width= int(curr_prediction["height"]/2), int(curr_prediction["width"]/2)
           x1, y1 = mid_x - half_width, mid_y - half_height
           x2, y2 = mid_x + half_width, mid_y + half_height
-          cv2.rectangle(img, (x1, y1), (x2, y2), (0,255,0), 2)
+          cv2.rectangle(img, (x1, y1), (x2, y2), (0,255,0), 4)
           cv2.putText(
               img,
               f'{curr_class}',
               (mid_x, y1),
               cv2.FONT_HERSHEY_SIMPLEX,
-              1,
+              .6,
               (0,0,255),
+              4
      
           )
 
@@ -145,14 +146,6 @@ def draw_annotations(result, img):
 
 
 def scanFrame(img, hand_model, elixir_timer_model, client):
-     enemy_troops = {
-            "name" : [],
-            "position" : [],
-     }  #"name", "position"
-     player_troops = {
-          "name" : [],
-          "position" : [],
-     }#"name", "position"
      player_hand = {
           "curr_hand_name" : [],
      } #curr hand name
@@ -175,9 +168,9 @@ def scanFrame(img, hand_model, elixir_timer_model, client):
 
      for finding in elixir_timer_model.predict(
           img,
-          iou = .5,
-          conf = .2,
-          imgsz = (864, 480),
+          conf = .1,
+          imgsz = (480, 864),
+          show = True,
           verbose = False,
 
      ):
@@ -189,12 +182,46 @@ def scanFrame(img, hand_model, elixir_timer_model, client):
                  x1, y1, x2, y2 = map(int, (box.xyxy[0].tolist()))
                  elixir_region = img[y1+4:y2-30, x1+65:x2-80]
                  elixir_count = read_image(elixir_region)
+                 cv2.rectangle(
+                     img,
+                     (x1,y1),
+                     (x2, y2),
+                     (0,255,0),
+                     4
+
+                 )
+                 cv2.putText(
+                     img,
+                     class_name,
+                     (x1 + 3, y1 - 10),
+                     cv2.FONT_HERSHEY_COMPLEX,
+                     .6,
+                     (0,255,0),
+                     4
+                 )
                  print(f'Elixir count: {elixir_count}')
                  
             elif class_name == "timer":
                  x1, y1, x2, y2 = map(int, (box.xyxy[0].tolist()))
                  timer_region = img[y1:y2, x1:x2]
                  timer_count = read_image(timer_region)
+                 cv2.rectangle(
+                     img,
+                     (x1,y1),
+                     (x2, y2),
+                     (0,255,0),
+                     4
+
+                 )
+                 cv2.putText(
+                     img,
+                     class_name,
+                     (x1 + 3, y1 - 10),
+                     cv2.FONT_HERSHEY_COMPLEX,
+                     .6,
+                     (0,255,0),
+                     4
+                 )
                  print(f'timer is {timer_count}')
 
                 
@@ -202,9 +229,8 @@ def scanFrame(img, hand_model, elixir_timer_model, client):
      #for the cards in hand: 
      for detection in hand_model.predict(
           img,
-          iou = .5,
           conf = .2,
-          imgsz = (864, 480),
+          imgsz = (480, 864),
           show = True,
           verbose = False,
           save = True,
@@ -216,7 +242,8 @@ def scanFrame(img, hand_model, elixir_timer_model, client):
             print(f"class name is: {class_name}")
             player_hand["curr_hand_name"].append(class_name)
 
-     ai_tester.runModel(str(player_hand), arena_grid, elixir_count, timer_count)
+    
+     ai_tester.runModel(player_hand, arena_grid, elixir_count, timer_count)
 
 
 
@@ -242,26 +269,29 @@ def runVideo(video_path, hand_model, elixir_timer_model, cards_in_play_client):
 
 
 '''
-#Use if you haven't trained the model yet
+#Use if you haven't trained the cards in hand model yet
 #https://app.roboflow.com/khang-nguyen-evva6/cr_hand_cards-fojbu/models/cr_hand_cards-fojbu-instant-2
 api_key = os.getenv('API_KEY')
 rf = Roboflow(api_key)
 project = rf.workspace("khang-nguyen-evva6").project("cr_hand_cards-fojbu")
-version = project.version(1)
+version = project.version(3)
 dataset = version.download("yolov12")
 
 model = YOLO("yolo12n.pt")
 results = model.train(
     data = f"{dataset.location}/data.yaml",
-    epochs = 50,
+    epochs = 10,
 )
 '''
 
 
 
+
+
+
 def main():
      
-     hand_model_path = "/opt/homebrew/runs/detect/train8/weights/best.pt"
+     hand_model_path = "/opt/homebrew/runs/detect/train10/weights/best.pt"
      hand_model = YOLO(hand_model_path)
 
      elixir_timer_path = "/opt/homebrew/runs/detect/train3/weights/best.pt"
